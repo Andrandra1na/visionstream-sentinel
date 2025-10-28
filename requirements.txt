@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn #  Le serveur ASGI (Asynchronous Server Gateway Interface) nécessaire pour exécuter votre application FastAPI.
 opencv-python-headless
 ultralytics
 python-dotenv
