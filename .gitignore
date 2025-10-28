@@ -1,0 +1,23 @@
+# Environnement virtuel Python
+venv/
+.venv/
+__pycache__/
+
+# Fichiers d'environnement
+.env
+
+# Fichiers de modèles IA (peuvent être volumineux)
+models/
+
+# Fichiers de l'éditeur VS Code
+.vscode/
+
+# Fichiers système
+.DS_Store```
+
+#### Fichier : `.env.example`
+C'est un modèle pour votre fichier `.env`. Il montre aux autres développeurs (ou à vous-même dans le futur) quelles variables d'environnement sont nécessaires.
+
+```ini
+# L'URL du flux vidéo fournie par l'application IP Webcam sur votre téléphone
+VIDEO_STREAM_URL="http://YOUR_PHONE_IP:PORT/video"
