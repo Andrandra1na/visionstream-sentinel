@@ -1,31 +1,18 @@
-# app/vision/supervisor.py
-
 import cv2
-import numpy as np  # Nécessaire pour les opérations sur les polygones
+import numpy as np  
 from threading import Thread
 from ultralytics import YOLO
 
 from app.core.config import settings
 
-# --- Variables globales pour la zone interactive ---
-# Ces variables sont globales au module pour être accessibles par le gestionnaire d'événements de la souris.
-
-# Liste pour stocker les points du polygone cliqués par l'utilisateur
 points = [] 
-# Le polygone final une fois que l'utilisateur a terminé (un tableau NumPy)
 defined_zone = None 
-# Nom de la fenêtre OpenCV pour pouvoir y attacher des événements
 window_name = "VisionStream Sentinel - Console de Supervision"
 
 
 def mouse_event_handler(event, x, y, flags, param):
-    """
-    Fonction appelée par OpenCV à chaque événement de la souris sur la fenêtre spécifiée.
-    C'est un "callback" : une fonction que l'on donne à un autre système pour qu'il l'appelle.
-    """
     global points, defined_zone
 
-    # Si l'utilisateur fait un clic gauche
     if event == cv2.EVENT_LBUTTONDOWN:
         # On vérifie qu'on ne définit pas une nouvelle zone alors qu'une est déjà active
         if defined_zone is None:
@@ -44,10 +31,6 @@ def mouse_event_handler(event, x, y, flags, param):
 
 
 class VideoStream:
-    """
-    Gère la capture vidéo dans un thread dédié pour une latence minimale.
-    Cette classe est inchangée.
-    """
     def __init__(self, src=0):
         self.stream = cv2.VideoCapture(src)
         if not self.stream.isOpened():
@@ -56,28 +39,21 @@ class VideoStream:
         self.stopped = False
 
     def start(self):
-        # Démarrer le thread pour lire les images du flux en continu
         Thread(target=self.update, args=(), daemon=True).start()
         return self
 
     def update(self):
-        # Boucle infinie qui lit constamment la dernière image
         while not self.stopped:
             (self.grabbed, self.frame) = self.stream.read()
 
     def read(self):
-        # Renvoyer la dernière image lue par le thread
         return self.frame
 
     def stop(self):
-        # Indiquer que le thread doit s'arrêter
         self.stopped = True
 
 
 class Supervisor:
-    """
-    Classe principale qui orchestre la capture, l'analyse et l'affichage.
-    """
     def __init__(self):
         print("Chargement du modèle YOLOv8...")
         self.model = YOLO(settings.MODEL_PATH)
@@ -88,7 +64,6 @@ class Supervisor:
         print("Flux vidéo démarré.")
 
     def run(self):
-        """Lance la boucle principale de supervision et gère les interactions utilisateur."""
         print("\n--- INSTRUCTIONS ---")
         print("1. CLIC GAUCHE sur la vidéo pour ajouter des points et définir la zone d'intrusion.")
         print("2. CLIC DROIT pour finaliser la zone (minimum 3 points).")
@@ -146,8 +121,9 @@ class Supervisor:
             alpha = 0.3 # 30% d'opacité
             cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
 
+
     def _analyze_frame(self, frame):
-        """Prend une image, effectue la détection et retourne l'image avec les annotations."""
+        """Prend une image, effectue la détection et retourne l'image annotée."""
         # Redimensionner l'image pour une analyse plus rapide
         h, w, _ = frame.shape
         ratio = settings.FRAME_WIDTH_FOR_PROCESSING / w
@@ -162,7 +138,7 @@ class Supervisor:
             intrusion_detected = False
             for result in results:
                 for box in result.boxes:
-                    if int(box.cls[0]) == 0: # 0 est l'ID de la classe 'person' dans le modèle COCO
+                    if int(box.cls[0]) == 0: # 0 est l'ID de la classe 'person'
                         # Obtenir les coordonnées dans la petite image redimensionnée
                         x1_r, y1_r, x2_r, y2_r = [int(i) for i in box.xyxy[0]]
                         
@@ -175,17 +151,9 @@ class Supervisor:
                         # Le point de test pour l'intrusion : le centre en bas de la boîte
                         person_point = (int((x1 + x2) / 2), y2)
 
-                        # --- AJOUT POUR LE DÉBOGAGE VISUEL ---
-                        # Dessinons ce point pour voir où il se trouve !
-                        cv2.circle(frame, person_point, 5, (255, 0, 0), -1) # Un cercle BLEU plein
-
                         # Vérifier si ce point est dans le polygone
                         is_intrusion = cv2.pointPolygonTest(defined_zone, person_point, False) >= 0
                         
-                        # Imprimer le résultat du test dans la console pour le débogage
-                        # -1.0 = dehors, 0.0 = sur le bord, 1.0 = dedans
-                        print(f"Test d'intrusion pour la personne : {cv2.pointPolygonTest(defined_zone, person_point, False)}")
-
                         if is_intrusion:
                             intrusion_detected = True
                         
@@ -196,14 +164,13 @@ class Supervisor:
                         cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                         cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-            # Si au moins une intrusion a été détectée dans l'image, afficher l'alerte globale
+            # Si au moins une intrusion a été détectée, afficher l'alerte globale
             if intrusion_detected:
                 cv2.putText(frame, "ALERTE INTRUSION !", (50, 50), cv2.FONT_HERSHEY_TRIPLEX, 1.5, (0, 0, 255), 2)
         
         return frame
 
     def _cleanup(self):
-        """Nettoie les ressources à la fin de l'exécution."""
         self.video_stream.stop()
         cv2.destroyAllWindows()
         print("Supervision terminée.")
