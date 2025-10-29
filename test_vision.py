@@ -1,64 +1,86 @@
 import cv2
 import os
+import time
 from dotenv import load_dotenv
 from ultralytics import YOLO
+from threading import Thread
+from queue import Queue
+
+FRAME_WIDTH_FOR_PROCESSING = 320
+
+class VideoStream:
+    def __init__(self, src=0):
+        self.stream = cv2.VideoCapture(src)
+        if not self.stream.isOpened():
+            print(f"Erreur : Impossible de se connecter au flux vidéo à l'adresse : {src}")
+            raise IOError("Impossible d'ouvrir le flux vidéo")
+
+        # Lire la première image pour initialiser
+        (self.grabbed, self.frame) = self.stream.read()
+        self.stopped = False
+
+    def start(self):
+        # Démarrer le thread pour lire les images du flux
+        Thread(target=self.update, args=()).start()
+        return self
+
+    def update(self):
+        # Boucle infinie pour lire les images
+        while not self.stopped:
+            (self.grabbed, self.frame) = self.stream.read()
+
+    def read(self):
+        return self.frame
+
+    def stop(self):
+        self.stopped = True
 
 def main():
-    
     load_dotenv()
     video_stream_url = os.getenv("VIDEO_STREAM_URL")
-
     if not video_stream_url:
-        print("Erreur : La variable d'environnement VIDEO_STREAM_URL n'est pas définie.")
-        print("Veuillez créer un fichier .env et y ajouter la ligne :")
-        print('VIDEO_STREAM_URL="http://VOTRE_IP:PORT/video"')
+        print("Erreur : VIDEO_STREAM_URL n'est pas définie dans le fichier .env.")
         return
 
-    try:
-        model = YOLO('./models/yolov8n.pt')
-        print("Modèle YOLOv8 chargé avec succès.")
-    except Exception as e:
-        print(f"Erreur lors du chargement du modèle YOLOv8 : {e}")
-        return
+    model = YOLO('./models/yolov8n.pt')
 
-    cap = cv2.VideoCapture(video_stream_url)
+    print("Démarrage du flux vidéo...")
+    vs = VideoStream(video_stream_url).start()
+    time.sleep(2.0) 
 
-    if not cap.isOpened():
-        print(f"Erreur : Impossible de se connecter au flux vidéo à l'adresse : {video_stream_url}")
-        print("Vérifiez les points suivants :")
-        print("- Votre téléphone et votre ordinateur sont sur le même réseau Wi-Fi.")
-        print("- L'application 'IP Webcam' est en cours d'exécution sur votre téléphone.")
-        print("- L'URL dans votre fichier .env est correcte.")
-        return
+    print("Démarrage de la boucle de traitement. Appuyez sur 'q' pour quitter.")
     
-    print("Connexion au flux vidéo réussie. Une fenêtre va s'ouvrir. Appuyez sur 'q' pour quitter.")
-
-    # 4. Boucle principale pour traiter chaque image du flux
     while True:
-        # Lire une image (frame) depuis le flux
-        ret, frame = cap.read()
+        frame = vs.read()
+        if frame is None:
+            continue
 
-        # Si la lecture échoue (ex: fin du flux ou erreur), on sort de la boucle
-        if not ret:
-            print("Erreur : Impossible de recevoir l'image du flux. Fin du programme.")
-            break
+        # --- Optimisation : Réduction de la résolution ---
+        h, w, _ = frame.shape
+        ratio = FRAME_WIDTH_FOR_PROCESSING / w
+        new_height = int(h * ratio)
+        resized_frame = cv2.resize(frame, (FRAME_WIDTH_FOR_PROCESSING, new_height))
 
-        # 5. Effectuer la détection d'objets sur l'image
-        results = model(frame)
+        # 5. Effectuer la détection d'objets
+        results = model(resized_frame, verbose=False) # verbose=False pour des logs plus propres
 
-        # 6. Obtenir l'image avec les boîtes de détection dessinées
-        # La méthode .plot() de YOLOv8 renvoie une image NumPy (BGR) avec les annotations
-        annotated_frame = results[0].plot()
+        # 6. Dessiner les résultats sur l'image originale
+        for result in results:
+            for box in result.boxes:
+                x1, y1, x2, y2 = [int(i) for i in box.xyxy[0]]
+                orig_x1, orig_y1, orig_x2, orig_y2 = int(x1 / ratio), int(y1 / ratio), int(x2 / ratio), int(y2 / ratio)
+                conf = box.conf[0]
+                cls = int(box.cls[0])
+                label = f"{model.names[cls]} {conf:.2f}"
+                cv2.rectangle(frame, (orig_x1, orig_y1), (orig_x2, orig_y2), (0, 255, 0), 2)
+                cv2.putText(frame, label, (orig_x1, orig_y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-        # 7. Afficher l'image annotée dans une fenêtre
-        cv2.imshow("VisionStream Sentinel - Test de Vision", annotated_frame)
+        cv2.imshow("VisionStream Sentinel - Test de Vision", frame)
 
-        # Attendre 1ms et vérifier si la touche 'q' a été pressée pour quitter
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-    # 8. Libérer les ressources
-    cap.release()
+    vs.stop()
     cv2.destroyAllWindows()
     print("Flux vidéo et fenêtres fermés proprement.")
 
