@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 import asyncio
+from fastapi.responses import FileResponse
 
 from app.api.streaming import router as streaming_router, broadcast_frames
 from app.vision.processor import video_processor
@@ -28,9 +29,6 @@ def shutdown_event():
     print("Arrêt du traitement vidéo...")
     video_processor.stop_processing()
     print("Application arrêtée.")
-
-# Route simple pour la page d'accueil (optionnel mais recommandé)
-from fastapi.responses import FileResponse
 
 @app.get("/")
 async def read_index():
