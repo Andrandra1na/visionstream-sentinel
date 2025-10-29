@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisionStream Sentinel - Supervision</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>VisionStream Sentinel</h1>
+        <div id="status-bar" class="status-ok">
+            <span id="status-text">CONNEXION EN COURS...</span>
+        </div>
+        <div class="video-container">
+            <canvas id="videoCanvas"></canvas>
+            <div id="alert-overlay" class="hidden">
+                <p>ALERTE : INTRUSION DÉTECTÉE !</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
