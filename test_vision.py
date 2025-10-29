@@ -1,4 +1,3 @@
-# test_vision.py (version multi-threadée et optimisée)
 import cv2
 import os
 import time
@@ -7,13 +6,9 @@ from ultralytics import YOLO
 from threading import Thread
 from queue import Queue
 
-# --- Paramètres d'optimisation ---
 FRAME_WIDTH_FOR_PROCESSING = 320
 
 class VideoStream:
-    """
-    Classe pour gérer la capture vidéo dans un thread dédié afin d'éviter le décalage du tampon OpenCV.
-    """
     def __init__(self, src=0):
         self.stream = cv2.VideoCapture(src)
         if not self.stream.isOpened():
@@ -35,37 +30,27 @@ class VideoStream:
             (self.grabbed, self.frame) = self.stream.read()
 
     def read(self):
-        # Renvoyer la dernière image lue
         return self.frame
 
     def stop(self):
-        # Indiquer que le thread doit s'arrêter
         self.stopped = True
 
 def main():
-    """
-    Fonction principale avec lecture et traitement vidéo séparés.
-    """
-    # 1. Charger les variables d'environnement
     load_dotenv()
     video_stream_url = os.getenv("VIDEO_STREAM_URL")
     if not video_stream_url:
         print("Erreur : VIDEO_STREAM_URL n'est pas définie dans le fichier .env.")
         return
 
-    # 2. Charger le modèle YOLOv8
     model = YOLO('./models/yolov8n.pt')
 
-    # 3. Démarrer le flux vidéo dans un thread séparé
     print("Démarrage du flux vidéo...")
     vs = VideoStream(video_stream_url).start()
-    time.sleep(2.0)  # Laisser le temps au tampon de se remplir un peu
+    time.sleep(2.0) 
 
     print("Démarrage de la boucle de traitement. Appuyez sur 'q' pour quitter.")
     
-    # 4. Boucle principale de traitement
     while True:
-        # Lire la dernière image disponible depuis le thread de lecture
         frame = vs.read()
         if frame is None:
             continue
@@ -90,13 +75,11 @@ def main():
                 cv2.rectangle(frame, (orig_x1, orig_y1), (orig_x2, orig_y2), (0, 255, 0), 2)
                 cv2.putText(frame, label, (orig_x1, orig_y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-        # 7. Afficher l'image
         cv2.imshow("VisionStream Sentinel - Test de Vision", frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-    # 8. Libérer les ressources
     vs.stop()
     cv2.destroyAllWindows()
     print("Flux vidéo et fenêtres fermés proprement.")
