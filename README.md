@@ -10,10 +10,8 @@ Une console de supervision intelligente en temps réel qui se connecte à un flu
 
 ### Démonstration Vidéo
 
-**(IMPORTANT : Enregistrez une vidéo ou un GIF de votre application en action et insérez-le ici. C'est l'élément le plus vendeur de votre projet !)**
-*Sur Debian, vous pouvez utiliser des outils comme `peek` ou `kazam` pour enregistrer un GIF facilement.*
 
-`![Demonstration GIF](link_vers_votre_gif.gif)`
+![Demonstration de VisionStream Sentinel en action](assets/demonstration.gif)
 
 ---
 
